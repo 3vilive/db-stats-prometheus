@@ -2,7 +2,7 @@
 
 `db-stats-prometheus` which provides a way to collect and expose database statistics as Prometheus metrics. It includes a tracer that can be used to track and monitor database connections in your application.
 
-## install
+## Install
 
 To install the `db-stats-prometheus` package, you can use the following command:
 
