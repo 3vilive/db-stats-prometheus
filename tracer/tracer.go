@@ -9,12 +9,17 @@ import (
 	"github.com/3vilive/db-stats-prometheus/metrics"
 )
 
+type dbWrapper struct {
+	db     *sql.DB
+	labels map[string]string
+}
+
 type Tracer struct {
 	ctx              context.Context
 	mutex            sync.Mutex
 	checkInterval    time.Duration
 	dbStatsCollector *metrics.DbStatsCollector
-	dbLabelMap       map[*sql.DB]map[string]string
+	dbMap            map[string]*dbWrapper
 }
 
 func NewTracer(ctx context.Context, configs ...ApplyConfig) *Tracer {
@@ -28,7 +33,7 @@ func NewTracer(ctx context.Context, configs ...ApplyConfig) *Tracer {
 		ctx:              ctx,
 		checkInterval:    config.CheckInterval,
 		dbStatsCollector: metrics.NewDbStatsCollector(config.Labels),
-		dbLabelMap:       make(map[*sql.DB]map[string]string),
+		dbMap:            make(map[string]*dbWrapper),
 	}
 
 	tracer.Start()
@@ -36,19 +41,22 @@ func NewTracer(ctx context.Context, configs ...ApplyConfig) *Tracer {
 	return tracer
 }
 
-func (t *Tracer) Trace(db *sql.DB, dbName string, labels ...map[string]string) {
+func (t *Tracer) Trace(dbName string, db *sql.DB, labels ...map[string]string) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
 	dbLabels := make(map[string]string)
-	dbLabels["name"] = dbName
 	for _, labelMap := range labels {
 		for k, v := range labelMap {
 			dbLabels[k] = v
 		}
 	}
+	dbLabels["name"] = dbName
 
-	t.dbLabelMap[db] = dbLabels
+	t.dbMap[dbName] = &dbWrapper{
+		db:     db,
+		labels: dbLabels,
+	}
 }
 
 func (t *Tracer) Start() {
@@ -71,7 +79,7 @@ func (t *Tracer) Check() {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
-	for db, labels := range t.dbLabelMap {
-		t.dbStatsCollector.Set(db.Stats(), labels)
+	for _, dbWrapper := range t.dbMap {
+		t.dbStatsCollector.Set(dbWrapper.db.Stats(), dbWrapper.labels)
 	}
 }
