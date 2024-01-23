@@ -24,8 +24,8 @@ tracer.Init(
     tracer.WithLabels("node", "role", "type"), // custom labels
 )
 
-tracer.MustTrace(db1, "test")
-tracer.MustTraceGormDb(db2, "production", map[string]string{
+tracer.MustTrace("test", db1)
+tracer.MustTraceGormDb("production", db2, map[string]string{
     "node": "01",
     "role": "master",
     "type": "gorm",
